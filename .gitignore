@@ -1,0 +1,25 @@
+# Build and Compilation
+bin/
+obj/
+out/
+publish/
+
+# IDE and Editors
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.suo
+
+# Environment and Secrets
+appsettings.*.json
+!appsettings.json
+*.env
+*.pem
+*.key
+
+# Database and Runtime Logs
+*.db
+*.db-shm
+*.db-wal
+*.log
