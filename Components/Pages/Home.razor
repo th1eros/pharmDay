@@ -1,0 +1,158 @@
+﻿@page "/"
+@using TGDay.Services
+@using ModelLog = TGDay.Domain.Models.PatientMedicationLog
+@rendermode InteractiveServer
+@inject MedicationScheduleService ScheduleService
+
+<PageTitle>TGDay - Gestão de Medicamentos</PageTitle>
+
+<div class="container mt-4">
+    <h2>Agendamento e Histórico de Medicamentos</h2>
+
+    <div class="card mb-4 mt-3">
+        <div class="card-header">Novo Registro</div>
+        <div class="card-body">
+            <EditForm Model="formModel" OnValidSubmit="HandleSaveAsync">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Nome do Paciente</label>
+                        <InputText @bind-Value="formModel.PatientName" class="form-control" placeholder="Digite o nome..." />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Medicamento</label>
+                        <InputText @bind-Value="formModel.MedicationName" class="form-control" placeholder="Nome do remédio..." />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Dosagem (mg)</label>
+                        <InputNumber @bind-Value="formModel.Milligrams" class="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Peso (kg)</label>
+                        <InputNumber @bind-Value="formModel.WeightKg" class="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Qtd. Tomadas</label>
+                        <InputNumber @bind-Value="formModel.DoseCount" class="form-control" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Dia da Semana</label>
+                        <InputSelect @bind-Value="formModel.ScheduledDay" class="form-select">
+                            @foreach (var day in Enum.GetValues<DayOfWeek>())
+                            {
+                                <option value="@day">@day</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Horário</label>
+                        <InputDate Type="InputDateType.Time" @bind-Value="formModel.ScheduledTime" class="form-control" />
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Registrar Dose</button>
+                    </div>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+
+    <table class="table table-striped align-middle">
+        <thead>
+            <tr>
+                <th>Paciente</th>
+                <th>Medicamento</th>
+                <th>Dosagem</th>
+                <th>Peso</th>
+                <th>Dia / Hora</th>
+                <th>Doses</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in logs)
+            {
+                <tr>
+                    <td>@item.PatientName</td>
+                    <td>@item.MedicationName</td>
+                    <td>@item.Milligrams mg</td>
+                    <td>@item.WeightKg kg</td>
+                    <td>@item.ScheduledDay às @item.ScheduledTime.ToString(@"hh\:mm")</td>
+                    <td>@item.DoseCount</td>
+                    <td>
+                        @if (item.IsDone)
+                        {
+                            <span class="badge bg-success">Tomado em @item.TakenAt?.ToString("dd/MM/yyyy HH:mm")</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning text-dark">Pendente</span>
+                        }
+                    </td>
+                    <td>
+                        @if (!item.IsDone)
+                        {
+                            <button class="btn btn-sm btn-outline-success me-1" @onclick="async () => await ToggleStatusAsync(item.Id)">Confirmar</button>
+                        }
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="async () => await ArchiveLogAsync(item.Id)">Adicionar</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private List<ModelLog> logs = new();
+    private FormModel formModel = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogsAsync();
+    }
+
+    private async Task LoadLogsAsync()
+    {
+        logs = await ScheduleService.GetActiveSchedulesAsync();
+    }
+
+    private async Task HandleSaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(formModel.PatientName)) return;
+
+        await ScheduleService.AddLogAsync(
+            formModel.PatientName,
+            formModel.MedicationName,
+            formModel.Milligrams,
+            formModel.WeightKg,
+            formModel.ScheduledDay,
+            formModel.ScheduledTime.ToTimeSpan(),
+            formModel.DoseCount
+        );
+
+        formModel = new();
+        await LoadLogsAsync();
+    }
+
+    private async Task ToggleStatusAsync(Guid id)
+    {
+        await ScheduleService.ToggleTakenStatusAsync(id);
+        await LoadLogsAsync();
+    }
+
+    private async Task ArchiveLogAsync(Guid id)
+    {
+        await ScheduleService.ArchiveLogAsync(id);
+        await LoadLogsAsync();
+    }
+
+    private sealed class FormModel
+    {
+        public string PatientName { get; set; } = string.Empty;
+        public string MedicationName { get; set; } = string.Empty;
+        public decimal Milligrams { get; set; } = 10;
+        public decimal WeightKg { get; set; } = 60;
+        public DayOfWeek ScheduledDay { get; set; } = DayOfWeek.Monday;
+        public TimeOnly ScheduledTime { get; set; } = new TimeOnly(8, 0);
+        public int DoseCount { get; set; } = 1;
+    }
+}

@@ -1,0 +1,69 @@
+﻿@inherits LayoutComponentBase
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4">
+            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+<style>
+    :root {
+        --primary-rose: #d63384;
+        --primary-soft: #e83e8c;
+        --accent-violet: #6f42c1;
+        --bg-gradient: linear-gradient(135deg, #f8f9fa 0%, #fce4ec 50%, #f3e5f5 100%);
+        --glass-bg: rgba(255, 255, 255, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.85);
+        --glass-shadow: 0 8px 32px 0 rgba(111, 66, 193, 0.12);
+    }
+
+    body {
+        background: var(--bg-gradient) !important;
+        background-attachment: fixed !important;
+    }
+
+    .sidebar {
+        background: linear-gradient(180deg, rgba(214, 51, 132, 0.9) 0%, rgba(111, 66, 193, 0.9) 100%) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border-right: 1px solid var(--glass-border) !important;
+    }
+
+    .top-row {
+        background: rgba(255, 255, 255, 0.5) !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        border-bottom: 1px solid var(--glass-border) !important;
+    }
+
+    .card, .table, .modal-content {
+        background: var(--glass-bg) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border: 1px solid var(--glass-border) !important;
+        box-shadow: var(--glass-shadow) !important;
+        border-radius: 12px !important;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--primary-rose), var(--accent-violet)) !important;
+        border: none !important;
+        box-shadow: 0 4px 15px rgba(214, 51, 132, 0.3) !important;
+    }
+
+    .nav-item a.active {
+        background: rgba(255, 255, 255, 0.25) !important;
+        backdrop-filter: blur(10px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    }
+</style>

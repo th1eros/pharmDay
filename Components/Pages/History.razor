@@ -1,0 +1,159 @@
+@page "/history"
+@rendermode InteractiveServer
+@using TGDay.Services
+@using DomainLog = TGDay.Domain.Models.PatientMedicationLog
+@inject MedicationScheduleService ScheduleService
+
+<PageTitle>TGDay - Histórico</PageTitle>
+
+<h3 class="mb-4 fw-bold" style="color: #6f42c1;">Histórico de Registros Arquivados</h3>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger shadow-sm border-0" style="background: rgba(220, 53, 69, 0.15); color: #842029;">@errorMessage</div>
+}
+
+<div class="card shadow-sm border-0 glass-card">
+    <div class="card-header text-white fw-bold py-3" style="background: linear-gradient(135deg, #d63384, #6f42c1);">Registros Arquivados</div>
+    <div class="card-body p-0">
+        <table class="table table-hover align-middle mb-0 bg-transparent">
+            <thead>
+                <tr style="border-bottom: 2px solid rgba(214, 51, 132, 0.2);">
+                    <th class="py-3 text-secondary">Paciente</th>
+                    <th class="py-3 text-secondary">Medicamento</th>
+                    <th class="py-3 text-secondary">Dosagem</th>
+                    <th class="py-3 text-secondary">Peso</th>
+                    <th class="py-3 text-secondary">Horário Agendado</th>
+                    <th class="py-3 text-secondary">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (archivedLogs == null || !archivedLogs.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">Nenhum registro arquivado no histórico.</td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var log in archivedLogs)
+                    {
+                        <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
+                            <td class="py-3 fw-medium">@log.PatientName</td>
+                            <td class="py-3">@log.MedicationName</td>
+                            <td class="py-3">@log.Milligrams mg</td>
+                            <td class="py-3">@log.WeightKg kg</td>
+                            <td class="py-3">@log.ScheduledDay às @log.ScheduledTime.ToString(@"hh\:mm")</td>
+                            <td class="py-3">
+                                <button class="btn btn-sm me-1 shadow-sm text-white fw-bold" style="background: linear-gradient(135deg, #d63384, #6f42c1); border: none; border-radius: 6px;" @onclick="() => RestoreAsync(log.Id)">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Restaurar
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger shadow-sm" style="border-radius: 6px;" @onclick="() => ConfirmDelete(log.Id)">
+                                    <i class="bi bi-trash me-1"></i>Excluir
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@if (showDeleteConfirmation)
+{
+    <div class="modal fade show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); backdrop-filter: blur(4px);">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0 glass-card">
+                <div class="modal-header text-white" style="background: linear-gradient(135deg, #dc3545, #b02a37);">
+                    <h5 class="modal-title fw-bold">Confirmação de Exclusão</h5>
+                    <button type="button" class="btn-close btn-close-white" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body py-4 text-center">
+                    <p class="fs-5 mb-0 text-secondary">Excluir permanentemente?</p>
+                </div>
+                <div class="modal-footer justify-content-center border-0 pb-4">
+                    <button type="button" class="btn btn-secondary px-4 shadow-sm" style="border-radius: 8px;" @onclick="CancelDelete">Não</button>
+                    <button type="button" class="btn btn-danger px-4 shadow-sm" style="border-radius: 8px;" @onclick="ExecuteHardDeleteAsync">Sim</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.75) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.9) !important;
+        box-shadow: 0 8px 32px 0 rgba(111, 66, 193, 0.15) !important;
+        border-radius: 12px !important;
+    }
+</style>
+
+@code {
+    private List<DomainLog> archivedLogs = new();
+    private string? errorMessage;
+    private bool showDeleteConfirmation;
+    private Guid? selectedLogIdToDelete;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadArchivedSchedulesAsync();
+    }
+
+    private async Task LoadArchivedSchedulesAsync()
+    {
+        try
+        {
+            archivedLogs = await ScheduleService.GetArchivedSchedulesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erro ao carregar histórico: {ex.Message}";
+        }
+    }
+
+    private async Task RestoreAsync(Guid id)
+    {
+        try
+        {
+            await ScheduleService.RestoreLogAsync(id);
+            await LoadArchivedSchedulesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erro ao restaurar registro: {ex.Message}";
+        }
+    }
+
+    private void ConfirmDelete(Guid id)
+    {
+        selectedLogIdToDelete = id;
+        showDeleteConfirmation = true;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteConfirmation = false;
+        selectedLogIdToDelete = null;
+    }
+
+    private async Task ExecuteHardDeleteAsync()
+    {
+        if (!selectedLogIdToDelete.HasValue) return;
+
+        try
+        {
+            await ScheduleService.DeleteLogPermanentlyAsync(selectedLogIdToDelete.Value);
+            showDeleteConfirmation = false;
+            selectedLogIdToDelete = null;
+            await LoadArchivedSchedulesAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Erro ao excluir registro: {ex.Message}";
+        }
+    }
+}

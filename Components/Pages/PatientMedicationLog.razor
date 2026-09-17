@@ -1,0 +1,304 @@
+@page "/medication-log"
+@rendermode InteractiveServer
+@using TGDay.Services
+@using DomainLog = TGDay.Domain.Models.PatientMedicationLog
+@inject MedicationScheduleService ScheduleService
+
+<PageTitle>TGDay - Gestão por Paciente</PageTitle>
+
+<h3 class="mb-4 fw-bold" style="color: #6f42c1;">Gestão de Pacientes</h3>
+
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group shadow-sm mb-4 border-0 glass-card p-2">
+            <div class="list-group-item text-white fw-bold border-0 py-3 mb-2" style="background: linear-gradient(135deg, #d63384, #6f42c1); border-radius: 8px !important;">Pacientes</div>
+            @if (patients == null || !patients.Any())
+            {
+                <div class="list-group-item text-muted bg-transparent border-0 text-center py-3">Nenhum paciente cadastrado.</div>
+            }
+            else
+            {
+                @foreach (var patient in patients)
+                {
+                    <button class="list-group-item list-group-item-action border-0 mb-1 fw-medium @(selectedPatient == patient ? "text-white shadow-sm" : "text-secondary")"
+                            style="@(selectedPatient == patient ? "background: linear-gradient(135deg, #d63384, #6f42c1); border-radius: 8px !important;" : "background: rgba(255,255,255,0.6); border-radius: 8px !important;")"
+                            @onclick="() => SelectPatientAsync(patient)">
+                        @patient
+                    </button>
+                }
+            }
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        @if (string.IsNullOrEmpty(selectedPatient))
+        {
+            <div class="alert alert-info shadow-sm border-0 glass-card text-secondary py-4" style="background: rgba(255, 255, 255, 0.75) !important;">Selecione um paciente ao lado para gerenciar os medicamentos.</div>
+        }
+        else
+        {
+            <div class="card shadow-sm border-0 glass-card">
+                <div class="card-header fw-bold d-flex justify-content-between align-items-center py-3 text-white" style="background: linear-gradient(135deg, #d63384, #6f42c1);">
+                    <span>Medicamentos de @selectedPatient</span>
+                    <button class="btn btn-sm btn-light text-dark fw-bold shadow-sm px-3" style="border-radius: 6px;" @onclick="() => ArchivePatientAsync(selectedPatient)">
+                        Arquivar Paciente
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-hover align-middle mb-0 bg-transparent">
+                        <thead>
+                            <tr style="border-bottom: 2px solid rgba(214, 51, 132, 0.2);">
+                                <th class="py-3 text-secondary">Medicamento</th>
+                                <th class="py-3 text-secondary">Dosagem (mg)</th>
+                                <th class="py-3 text-secondary">Peso (kg)</th>
+                                <th class="py-3 text-secondary">Dia / Hora</th>
+                                <th class="py-3 text-secondary">Dose Atual</th>
+                                <th class="py-3 text-secondary">Próxima Dose</th>
+                                <th class="py-3 text-secondary">Faltam</th>
+                                <th class="py-3 text-secondary">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (patientLogs == null || !patientLogs.Any())
+                            {
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">Nenhum registro para este paciente.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var log in patientLogs)
+                                {
+                                    var currentDose = logDoseTracker.GetValueOrDefault(log.Id, 1);
+                                    var remaining = Math.Max(0, log.DoseCount - currentDose);
+
+                                    <tr style="border-bottom: 1px solid rgba(0,0,0,0.05);">
+                                        @if (editingId == log.Id)
+                                        {
+                                            <td class="py-3"><input type="text" class="form-control form-control-sm glass-input" @bind="editModel.MedicationName" /></td>
+                                            <td class="py-3"><input type="number" class="form-control form-control-sm glass-input" @bind="editModel.Milligrams" step="0.1" /></td>
+                                            <td class="py-3"><input type="number" class="form-control form-control-sm glass-input" @bind="editModel.WeightKg" step="0.1" /></td>
+                                            <td class="py-3">@log.ScheduledDay às @log.ScheduledTime.ToString(@"hh\:mm")</td>
+                                            <td class="py-3">
+                                                <div class="input-group input-group-sm" style="width: 110px;">
+                                                    <button class="btn btn-outline-secondary" type="button" @onclick="DecrementEditDose">-</button>
+                                                    <input type="text" class="form-control text-center glass-input" value="@editModel.CurrentDose" readonly />
+                                                    <button class="btn btn-outline-secondary" type="button" @onclick="() => IncrementEditDose(log.DoseCount)">+</button>
+                                                </div>
+                                            </td>
+                                            <td class="py-3">@CalculateNextDose(log)</td>
+                                            <td class="py-3"><span class="badge bg-info text-dark">@(Math.Max(0, log.DoseCount - editModel.CurrentDose))</span></td>
+                                            <td class="py-3">
+                                                <div class="d-flex gap-2">
+                                                    <button class="btn btn-sm text-white fw-bold shadow-sm" style="background: #198754; border: none; border-radius: 6px;" @onclick="SaveEditAsync">Salvar</button>
+                                                    <button class="btn btn-sm btn-secondary shadow-sm" style="border-radius: 6px;" @onclick="CancelEdit">Cancelar</button>
+                                                    <button class="btn btn-sm btn-warning shadow-sm" style="border-radius: 6px;" @onclick="() => ArchiveLogAsync(log.Id)">Arquivar</button>
+                                                </div>
+                                            </td>
+                                        }
+                                        else
+                                        {
+                                            <td class="py-3 fw-medium">@log.MedicationName</td>
+                                            <td class="py-3">@log.Milligrams mg</td>
+                                            <td class="py-3">@log.WeightKg kg</td>
+                                            <td class="py-3">@log.ScheduledDay às @log.ScheduledTime.ToString(@"hh\:mm")</td>
+                                            <td class="py-3">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge px-2 py-1" style="background: rgba(111, 66, 193, 0.15); color: #6f42c1; font-weight: 600;">@(currentDose)ª dose</span>
+                                                    @if (currentDose < log.DoseCount)
+                                                    {
+                                                        <button class="btn btn-sm btn-outline-success py-0 px-2 shadow-sm" title="Tomar dose" @onclick="() => TakeDose(log.Id, log.DoseCount)">+1</button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-success">Concluído</span>
+                                                    }
+                                                </div>
+                                            </td>
+                                            <td class="py-3">@CalculateNextDose(log)</td>
+                                            <td class="py-3"><span class="badge bg-info text-dark">@remaining</span></td>
+                                            <td class="py-3">
+                                                <div class="d-flex gap-2">
+                                                    <button class="btn btn-sm btn-outline-secondary shadow-sm" style="border-radius: 6px;" @onclick="() => StartEdit(log)">Detalhes</button>
+                                                    <button class="btn btn-sm btn-outline-warning shadow-sm" style="border-radius: 6px;" @onclick="() => ArchiveLogAsync(log.Id)">Arquivar</button>
+                                                </div>
+                                            </td>
+                                        }
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.75) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.9) !important;
+        box-shadow: 0 8px 32px 0 rgba(111, 66, 193, 0.15) !important;
+        border-radius: 12px !important;
+    }
+
+    .glass-input {
+        background: rgba(255, 255, 255, 0.85) !important;
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(214, 51, 132, 0.2) !important;
+        border-radius: 8px !important;
+    }
+
+    .glass-input:focus {
+        border-color: #d63384 !important;
+        box-shadow: 0 0 0 0.2rem rgba(214, 51, 132, 0.25) !important;
+    }
+</style>
+
+@code {
+    private List<string> patients = new();
+    private string selectedPatient = string.Empty;
+    private List<DomainLog> patientLogs = new();
+    private Guid? editingId;
+    private EditLogModel editModel = new();
+    private Dictionary<Guid, int> logDoseTracker = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPatientsAsync();
+    }
+
+   private async Task LoadPatientsAsync()
+    {
+        patients = await ScheduleService.GetAllPatientsAsync();
+        StateHasChanged();
+
+        if (patients.Any() && string.IsNullOrEmpty(selectedPatient))
+        {
+            await SelectPatientAsync(patients.First());
+        }
+        else if (patients.Any() && patients.Contains(selectedPatient))
+        {
+            await SelectPatientAsync(selectedPatient);
+        }
+        else if (patients.Any())
+        {
+            await SelectPatientAsync(patients.First());
+        }
+        else
+        {
+            selectedPatient = string.Empty;
+            patientLogs.Clear();
+        }
+    }
+
+    private async Task SelectPatientAsync(string patientName)
+    {
+        selectedPatient = patientName;
+        editingId = null;
+        patientLogs = await ScheduleService.GetLogsByPatientAsync(patientName);
+        
+        foreach (var log in patientLogs)
+        {
+            if (!logDoseTracker.ContainsKey(log.Id))
+            {
+                logDoseTracker[log.Id] = log.IsDone ? log.DoseCount : 1;
+            }
+        }
+    }
+
+    private void TakeDose(Guid logId, int maxDoses)
+    {
+        if (logDoseTracker.TryGetValue(logId, out var current) && current < maxDoses)
+        {
+            logDoseTracker[logId] = current + 1;
+        }
+    }
+
+    private void StartEdit(DomainLog log)
+    {
+        editingId = log.Id;
+        editModel = new EditLogModel
+        {
+            MedicationName = log.MedicationName,
+            Milligrams = log.Milligrams,
+            WeightKg = log.WeightKg,
+            CurrentDose = logDoseTracker.GetValueOrDefault(log.Id, 1)
+        };
+    }
+
+    private void IncrementEditDose(int maxDoses)
+    {
+        if (editModel.CurrentDose < maxDoses)
+        {
+            editModel.CurrentDose++;
+        }
+    }
+
+    private void DecrementEditDose()
+    {
+        if (editModel.CurrentDose > 1)
+        {
+            editModel.CurrentDose--;
+        }
+    }
+
+    private void CancelEdit()
+    {
+        editingId = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (editingId.HasValue)
+        {
+            await ScheduleService.UpdateLogAsync(editingId.Value, editModel.MedicationName, editModel.Milligrams, editModel.WeightKg);
+            logDoseTracker[editingId.Value] = editModel.CurrentDose;
+            editingId = null;
+            await SelectPatientAsync(selectedPatient);
+        }
+    }
+
+    private async Task ArchiveLogAsync(Guid id)
+    {
+        await ScheduleService.ArchiveLogAsync(id);
+        logDoseTracker.Remove(id);
+        editingId = null;
+        await LoadPatientsAsync();
+    }
+
+    private async Task ArchivePatientAsync(string patientName)
+    {
+        var logs = await ScheduleService.GetLogsByPatientAsync(patientName);
+        foreach (var log in logs)
+        {
+            await ScheduleService.ArchiveLogAsync(log.Id);
+            logDoseTracker.Remove(log.Id);
+        }
+
+        selectedPatient = string.Empty;
+        await LoadPatientsAsync();
+    }
+
+    private string CalculateNextDose(DomainLog log)
+    {
+        var currentDose = logDoseTracker.GetValueOrDefault(log.Id, 1);
+        if (currentDose >= log.DoseCount) return "Finalizado";
+
+        var baseDate = DateTime.Today.Add(log.ScheduledTime);
+        var nextDate = baseDate.AddDays(7 * currentDose);
+
+        return nextDate.ToString("dd/MM/yyyy HH:mm");
+    }
+
+    private sealed class EditLogModel
+    {
+        public string MedicationName { get; set; } = string.Empty;
+        public decimal Milligrams { get; set; }
+        public decimal WeightKg { get; set; }
+        public int CurrentDose { get; set; } = 1;
+    }
+}

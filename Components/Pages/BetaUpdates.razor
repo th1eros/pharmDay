@@ -1,0 +1,119 @@
+@page "/beta-updates"
+@rendermode InteractiveServer
+
+<PageTitle>TGDay - Próximas Atualizações (Beta)</PageTitle>
+
+<div class="container py-4">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h3 class="mb-1 fw-bold">Próximas Atualizações</h3>
+            <p class="text-muted mb-0">Roadmap e novidades do sistema TGDay em versão Beta.</p>
+        </div>
+        <span class="badge bg-warning text-dark px-3 py-2 fs-6">Versão Beta</span>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4 border-0 glass-card">
+                <div class="card-header text-white fw-bold py-3" style="background: linear-gradient(135deg, #d63384, #6f42c1);">
+                    Planejadas / Em Desenvolvimento
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush bg-transparent">
+                        <li class="list-group-item p-3 bg-transparent border-light">
+                            <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                                <h6 class="mb-0 fw-bold" style="color: #6f42c1;">Histórico de peso</h6>
+                                <span class="badge bg-info text-dark">Em breve</span>
+                            </div>
+                            <p class="mb-1 text-muted small">Devido trabalhar com outros medicamentos além da TG, não há necessidade por enquanto focar o peso.</p>
+                        </li>
+                        <li class="list-group-item p-3 bg-transparent border-light">
+                            <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                                <h6 class="mb-0 fw-bold" style="color: #6f42c1;">Sincronia com Despertador</h6>
+                                <span class="badge bg-info text-dark">Em breve</span>
+                            </div>
+                            <p class="mb-1 text-muted small">Ajustar para conectar ao despertador.</p>
+                        </li>
+                        <li class="list-group-item p-3 bg-transparent border-light">
+                            <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                                <h6 class="mb-0 fw-bold" style="color: #6f42c1;">Notificações e Lembretes de Doses</h6>
+                                <span class="badge bg-secondary">Em análise</span>
+                            </div>
+                            <p class="mb-1 text-muted small">Alertas em tempo real quando o horário da próxima dose estiver próximo.</p>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 glass-card">
+                <div class="card-header fw-bold py-3 text-secondary" style="background: rgba(255, 255, 255, 0.5);">
+                    Histórico de Atualizações Recentes
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush bg-transparent">
+                        <li class="list-group-item p-3 bg-transparent border-light">
+                            <div class="d-flex w-100 justify-content-between align-items-center mb-1">
+                                <h6 class="mb-0 fw-bold text-success">Controle e Edição de Dose Atual</h6>
+                                <span class="badge bg-success">Concluído</span>
+                            </div>
+                            <p class="mb-1 text-muted small">Inclusão do botão de incremento +1 na listagem e alteração de quantidade na área de detalhes.</p>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 glass-card">
+                <div class="card-body p-4">
+                    <h5 class="card-title fw-bold" style="color: #6f42c1;">Canal de Feedback</h5>
+                    <p class="card-text text-muted small">Identificou um erro ou possui uma sugestão para os próximos lançamentos?</p>
+                    <textarea class="form-control mb-3 glass-input" rows="3" placeholder="Descreva sua sugestão..." @bind="feedbackText"></textarea>
+                    <button class="btn text-white w-100 fw-bold shadow-sm" style="background: linear-gradient(135deg, #d63384, #6f42c1); border: none; border-radius: 8px; padding: 0.55rem;" @onclick="SendFeedback" disabled="@string.IsNullOrWhiteSpace(feedbackText)">
+                        Enviar Feedback
+                    </button>
+                    @if (feedbackSent)
+                    {
+                        <div class="alert alert-success mt-3 py-2 small text-center mb-0 border-0 shadow-sm" style="background: rgba(25, 135, 84, 0.15); color: #0f5132;">
+                            Feedback registrado!
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .glass-card {
+        background: rgba(255, 255, 255, 0.75) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border: 1px solid rgba(255, 255, 255, 0.9) !important;
+        box-shadow: 0 8px 32px 0 rgba(111, 66, 193, 0.15) !important;
+        border-radius: 12px !important;
+    }
+
+    .glass-input {
+        background: rgba(255, 255, 255, 0.85) !important;
+        backdrop-filter: blur(4px);
+        border: 1px solid rgba(214, 51, 132, 0.2) !important;
+        border-radius: 8px !important;
+    }
+
+    .glass-input:focus {
+        border-color: #d63384 !important;
+        box-shadow: 0 0 0 0.2rem rgba(214, 51, 132, 0.25) !important;
+    }
+</style>
+
+@code {
+    private string feedbackText = string.Empty;
+    private bool feedbackSent = false;
+
+    private void SendFeedback()
+    {
+        feedbackText = string.Empty;
+        feedbackSent = true;
+    }
+}
